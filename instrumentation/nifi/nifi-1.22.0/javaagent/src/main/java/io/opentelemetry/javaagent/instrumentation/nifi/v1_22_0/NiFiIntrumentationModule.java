@@ -11,8 +11,7 @@ import com.google.auto.service.AutoService;
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
-
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
 
@@ -29,12 +28,13 @@ public final class NiFiIntrumentationModule extends InstrumentationModule {
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return AgentElementMatchers.hasClassesNamed("org.apache.nifi.controller.repository.StandardProcessSession");
+    return AgentElementMatchers.hasClassesNamed(
+        "org.apache.nifi.controller.repository.StandardProcessSession");
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
-    return Arrays.asList(new NiFiProcessSessionInstrumentation(), new NiFiAbstractProcessorInstrumentation());
+    return Collections.singletonList(new NiFiProcessSessionInstrumentation());
   }
 
 /*

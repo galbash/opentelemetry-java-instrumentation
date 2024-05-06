@@ -24,7 +24,6 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.nifi.controller.repository.StandardProcessSession;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 
@@ -57,8 +56,8 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     //@Advice.OnMethodExit(suppress = Throwable.class)
     @Advice.OnMethodExit()
     public static void onExit(
-        @Advice.Return FlowFile flowFile,
-        @Advice.This StandardProcessSession session
+        @Advice.This ProcessSession session,
+        @Advice.Return FlowFile flowFile
     ) {
       TextMapGetter<Map<String, String>> getter = FlowFileAttributesTextMapGetter.INSTANCE;
       Context extractedContext = GlobalOpenTelemetry.getPropagators()
@@ -72,6 +71,8 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         span.setAttribute(entry.getKey(), entry.getValue());
       }
       Scope scope = span.makeCurrent();
+//      scope.close();
+//      span.end();
       ProcessSpanTracker.set(session, span, scope);
     }
 
@@ -86,6 +87,9 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Argument(value = 0, readOnly = false) FlowFile flowFile,
         @Advice.This ProcessSession processSession
     ) {
+      Span currentSpan = Java8BytecodeBridge.currentSpan();
+      currentSpan.addEvent(
+          "Injecting attributes" + Java8BytecodeBridge.currentContext().toString());
       Map<String, String> carrier = new HashMap<>();
       TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
       GlobalOpenTelemetry.getPropagators()
@@ -100,7 +104,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
 
     //@Advice.OnMethodExit(suppress = Throwable.class)
     @Advice.OnMethodExit()
-    public static void onExit(@Advice.This StandardProcessSession session) {
+    public static void onExit(@Advice.This ProcessSession session) {
       ProcessSpanTracker.close(session);
     }
 
