@@ -32,6 +32,7 @@ public final class NifiProcessSessionSingletons {
     for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
       span.setAttribute(entry.getKey(), entry.getValue());
     }
+    span.addEvent("Starting file handle " + flowFile.getId());
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, span, scope);
   }
@@ -39,6 +40,7 @@ public final class NifiProcessSessionSingletons {
   public static void startProcessSessionSpan(ProcessSession session, List<FlowFile> flowFiles) {
     if (flowFiles.size() == 1) {
       startProcessSessionSpan(session, flowFiles.get(0));
+      Span.current().addEvent("get multiple, event size is 1");
       return;
     }
 
@@ -55,6 +57,7 @@ public final class NifiProcessSessionSingletons {
     }
 
     Span span = spanBuilder.startSpan();
+    span.addEvent("get multiple");
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, span, scope);
   }
@@ -63,6 +66,7 @@ public final class NifiProcessSessionSingletons {
       Span currentSpan) {
     currentSpan.addEvent(
         "Injecting attributes" + Java8BytecodeBridge.currentContext().toString());
+    currentSpan.addEvent("Injecting to flow file " + flowFile.getId());
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()

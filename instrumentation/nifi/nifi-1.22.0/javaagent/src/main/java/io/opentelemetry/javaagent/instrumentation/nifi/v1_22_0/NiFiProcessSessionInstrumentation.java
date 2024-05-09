@@ -5,12 +5,10 @@
 
 package io.opentelemetry.javaagent.instrumentation.nifi.v1_22_0;
 
-import static net.bytebuddy.matcher.ElementMatchers.isSubTypeOf;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
-import static net.bytebuddy.matcher.ElementMatchers.takesGenericArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import io.opentelemetry.api.trace.Span;
@@ -44,9 +42,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     typeTransformer.applyAdviceToMethod(
         namedOneOf("get")
             .and(takesArguments(2))
-            .and(returns(isSubTypeOf(List.class))
-                .and(takesArguments(0))
-                .and(takesGenericArguments(FlowFile.class))),
+            .and(returns(List.class)),
         this.getClass().getName() + "$NiFiProcessGetListAdvice");
     typeTransformer.applyAdviceToMethod(
         namedOneOf("create"),
@@ -60,8 +56,9 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
             .and(takesArgument(0, Collection.class)),
         this.getClass().getName() + "$NiFiProcessTransferListAdvice");
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("commit").and(takesArguments(2)),
-        this.getClass().getName() + "$NiFiProcessCommitAdvice");
+        namedOneOf("checkpoint")
+            .and(takesArguments(boolean.class)),
+        this.getClass().getName() + "$NiFiProcessCheckpointAdvice");
   }
 
   @SuppressWarnings("unused")
@@ -90,6 +87,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     ) {
       if (flowFiles != null) {
         NifiProcessSessionSingletons.startProcessSessionSpan(session, flowFiles);
+        Java8BytecodeBridge.currentSpan().addEvent("Signle get");
       }
     }
   }
@@ -125,7 +123,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
   }
 
   @SuppressWarnings("unused")
-  public static class NiFiProcessCommitAdvice {
+  public static class NiFiProcessCheckpointAdvice {
 
     //@Advice.OnMethodExit(suppress = Throwable.class)
     @Advice.OnMethodExit()
