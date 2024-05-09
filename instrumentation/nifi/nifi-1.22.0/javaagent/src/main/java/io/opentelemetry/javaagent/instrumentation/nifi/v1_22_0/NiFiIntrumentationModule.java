@@ -34,19 +34,13 @@ public final class NiFiIntrumentationModule extends InstrumentationModule {
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
+//    ArrayList<TypeInstrumentation> result = new ArrayList<>();
+//    result.add(new NiFiProcessorInstrumentation());
+//    result.add(new NiFiProcessSessionInstrumentation());
+//    return result;
     return Arrays.asList(
-        new NiFiProcessSessionInstrumentation(),
-        new NiFiProcessorInstrumentation()
+        new NiFiProcessorInstrumentation(),
+        new NiFiProcessSessionInstrumentation()
     );
   }
-
-/*
-  @Override
-//  public List<String> getAdditionalHelperClassNames() {
-*/
-//    return Arrays.asList(
-//            "com.example.javaagent.instrumentation.NifiProcessSessionSingleton",
-//            "com.example.javaagent.instrumentation.FlowFileAttributesTextMapGetter"
-//    );
-//  }
 }

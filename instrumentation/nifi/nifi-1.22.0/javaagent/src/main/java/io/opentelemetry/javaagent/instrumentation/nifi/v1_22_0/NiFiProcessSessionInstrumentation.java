@@ -45,8 +45,13 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
             .and(returns(List.class)),
         this.getClass().getName() + "$NiFiProcessGetListAdvice");
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("create"),
+        namedOneOf("create")
+            .and(takesNoArguments().or(takesArguments(FlowFile.class))),
         this.getClass().getName() + "$NiFiProcessGetAdvice");
+    typeTransformer.applyAdviceToMethod(
+        namedOneOf("create")
+            .and(takesArguments(Collection.class)),
+        this.getClass().getName() + "$NiFiProcessCreateMergeAdvice");
     typeTransformer.applyAdviceToMethod(
         namedOneOf("transfer").and(takesArgument(0, FlowFile.class)),
         this.getClass().getName() + "$NiFiProcessTransferAdvice");
@@ -89,6 +94,22 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         NifiProcessSessionSingletons.startProcessSessionSpan(session, flowFiles);
         Java8BytecodeBridge.currentSpan().addEvent("Signle get");
       }
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class NiFiProcessCreateMergeAdvice {
+
+    //@Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit()
+    public static void onExit(
+        @Advice.This ProcessSession session,
+        @Advice.Return FlowFile createFlowFile,
+        @Advice.Argument(0) Collection<FlowFile> inputFlowFiles
+    ) {
+      ProcessSpanTracker.close(session);
+      NifiProcessSessionSingletons.startProcessSessionSpan(session, inputFlowFiles);
+      Java8BytecodeBridge.currentSpan().addEvent("Create merge");
     }
   }
 

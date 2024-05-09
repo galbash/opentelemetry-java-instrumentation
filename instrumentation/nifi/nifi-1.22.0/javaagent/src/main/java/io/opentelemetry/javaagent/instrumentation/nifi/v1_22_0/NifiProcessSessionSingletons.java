@@ -8,6 +8,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -34,12 +35,13 @@ public final class NifiProcessSessionSingletons {
     }
     span.addEvent("Starting file handle " + flowFile.getId());
     Scope scope = span.makeCurrent();
-    ProcessSpanTracker.set(session, span, scope);
+    ProcessSpanTracker.set(session, flowFile, span, scope);
   }
 
-  public static void startProcessSessionSpan(ProcessSession session, List<FlowFile> flowFiles) {
+  public static void startProcessSessionSpan(ProcessSession session,
+      Collection<FlowFile> flowFiles) {
     if (flowFiles.size() == 1) {
-      startProcessSessionSpan(session, flowFiles.get(0));
+      startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
       Span.current().addEvent("get multiple, event size is 1");
       return;
     }
@@ -56,10 +58,12 @@ public final class NifiProcessSessionSingletons {
       spanBuilder.addLink(Span.fromContext(context).getSpanContext());
     }
 
-    Span span = spanBuilder.startSpan();
+    Span span = spanBuilder.setNoParent().startSpan();
     span.addEvent("get multiple");
     Scope scope = span.makeCurrent();
-    ProcessSpanTracker.set(session, span, scope);
+    for (FlowFile file : flowFiles) {
+      ProcessSpanTracker.set(session, file, span, scope);
+    }
   }
 
   public static FlowFile injectContextToFlowFile(FlowFile flowFile, ProcessSession processSession,

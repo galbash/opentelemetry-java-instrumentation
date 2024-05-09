@@ -14,35 +14,33 @@ import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.matcher.ElementMatchers;
-import org.apache.nifi.processor.Processor;
 
 public class NiFiProcessorInstrumentation implements TypeInstrumentation {
 
   @Override
   public ElementMatcher<TypeDescription> typeMatcher() {
     return AgentElementMatchers
-        .hasSuperType(ElementMatchers.is(Processor.class));
+        .hasSuperType(namedOneOf("org.apache.nifi.processor.AbstractProcessor"));
   }
 
   @Override
   public void transform(TypeTransformer typeTransformer) {
     typeTransformer.applyAdviceToMethod(
         namedOneOf("onTrigger"),
+        NiFiProcessorInstrumentation.class.getName() + "$OnTriggerAdvice");
 //            .and(ElementMatchers.takesArgument(0, ProcessContext.class))
 //            .and(ElementMatchers.takesArgument(1, ProcessSession.class))
 //            .and(ElementMatchers.takesArguments(2))
 //            .and(ElementMatchers.not(ElementMatchers.isAbstract())),
-        this.getClass().getName() + "$NiFiProcessorOnTriggerAdvice");
   }
 
   @SuppressWarnings("unused")
-  public static class NiFiProcessorOnTriggerAdvice {
+  public static class OnTriggerAdvice {
 
     //@Advice.OnMethodExit(suppress = Throwable.class)
-    @Advice.OnMethodExit()
-    public static void onExit(
-        @Advice.This Processor processor
+    @Advice.OnMethodEnter()
+    public static void onEnter(
+        //@Advice.This Processor processor
     ) {
       throw new VerifyException("BVL");
       //Span.current().setAttribute("nifi.processor.name", processor.getClass().getName());
