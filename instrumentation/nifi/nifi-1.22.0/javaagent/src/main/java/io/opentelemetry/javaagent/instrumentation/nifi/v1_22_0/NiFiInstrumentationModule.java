@@ -5,17 +5,18 @@
 
 package io.opentelemetry.javaagent.instrumentation.nifi.v1_22_0;
 
+import static io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers.hasClassesNamed;
+
 import com.google.auto.service.AutoService;
 import io.opentelemetry.javaagent.extension.instrumentation.InstrumentationModule;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
-import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumentationModule.class)
-public final class NiFiIntrumentationModule extends InstrumentationModule {
-  public NiFiIntrumentationModule() {
+public final class NiFiInstrumentationModule extends InstrumentationModule {
+  public NiFiInstrumentationModule() {
     super("nifi");
   }
 
@@ -26,21 +27,15 @@ public final class NiFiIntrumentationModule extends InstrumentationModule {
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return AgentElementMatchers.hasClassesNamed(
-        "org.apache.nifi.controller.repository.StandardProcessSession",
-        "org.apache.nifi.processor.Processor"
-    );
+    return hasClassesNamed("org.apache.nifi.controller.repository.StandardProcessSession")
+        .or(hasClassesNamed("org.apache.nifi.processor.AbstractProcessor"));
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
-//    ArrayList<TypeInstrumentation> result = new ArrayList<>();
-//    result.add(new NiFiProcessorInstrumentation());
-//    result.add(new NiFiProcessSessionInstrumentation());
-//    return result;
-    return Arrays.asList(
-        new NiFiProcessorInstrumentation(),
-        new NiFiProcessSessionInstrumentation()
-    );
+    ArrayList<TypeInstrumentation> result = new ArrayList<>();
+    result.add(new NiFiProcessorInstrumentation());
+    result.add(new NiFiProcessSessionInstrumentation());
+    return result;
   }
 }

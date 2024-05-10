@@ -17,10 +17,10 @@ import java.util.stream.Collectors;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 
-public final class NifiProcessSessionSingletons {
+public final class ProcessSessionSingletons {
   static Tracer tracer = GlobalOpenTelemetry.getTracer("nifi");
 
-  private NifiProcessSessionSingletons() {}
+  private ProcessSessionSingletons() {}
 
   public static void startProcessSessionSpan(ProcessSession session, FlowFile flowFile) {
     Context extractedContext = GlobalOpenTelemetry.getPropagators()
@@ -31,46 +31,42 @@ public final class NifiProcessSessionSingletons {
         .setParent(extractedContext)
         .startSpan();
     for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
-      span.setAttribute(entry.getKey(), entry.getValue());
+      span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
     }
-    span.addEvent("Starting file handle " + flowFile.getId());
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, flowFile, span, scope);
   }
 
-  public static void startProcessSessionSpan(ProcessSession session,
+  public static void startProcessSessionSpan(
+      ProcessSession session,
       Collection<FlowFile> flowFiles) {
     if (flowFiles.size() == 1) {
       startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
-      Span.current().addEvent("get multiple, event size is 1");
       return;
     }
 
     SpanBuilder spanBuilder = tracer.spanBuilder("Handle Flow Files");
-    List<Context> parentContexts = flowFiles.stream().map(flowFile -> {
-      return GlobalOpenTelemetry.getPropagators()
-          .getTextMapPropagator()
-          .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
-              FlowFileAttributesTextMapGetter.INSTANCE);
-    }).collect(Collectors.toList());
+    List<Context> parentContexts = flowFiles.stream()
+        .map(flowFile -> GlobalOpenTelemetry.getPropagators()
+            .getTextMapPropagator()
+            .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
+                FlowFileAttributesTextMapGetter.INSTANCE)).collect(Collectors.toList());
 
     for (Context context : parentContexts) {
       spanBuilder.addLink(Span.fromContext(context).getSpanContext());
     }
 
     Span span = spanBuilder.setNoParent().startSpan();
-    span.addEvent("get multiple");
     Scope scope = span.makeCurrent();
     for (FlowFile file : flowFiles) {
       ProcessSpanTracker.set(session, file, span, scope);
     }
   }
 
-  public static FlowFile injectContextToFlowFile(FlowFile flowFile, ProcessSession processSession,
+  public static FlowFile injectContextToFlowFile(
+      FlowFile flowFile,
+      ProcessSession processSession,
       Span currentSpan) {
-    currentSpan.addEvent(
-        "Injecting attributes" + Java8BytecodeBridge.currentContext().toString());
-    currentSpan.addEvent("Injecting to flow file " + flowFile.getId());
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()
@@ -79,13 +75,12 @@ public final class NifiProcessSessionSingletons {
     return processSession.putAllAttributes(flowFile, carrier);
   }
 
-  public static List<FlowFile> injectContextToFlowFiles(Collection<FlowFile> flowFiles,
-      ProcessSession processSession, Span currentSpan) {
-    currentSpan.addEvent("transfer multiple");
-    return flowFiles
-        .stream()
-        .map(flowFile -> injectContextToFlowFile(flowFile,
-            processSession, currentSpan))
+  public static List<FlowFile> injectContextToFlowFiles(
+      Collection<FlowFile> flowFiles,
+      ProcessSession processSession,
+      Span currentSpan) {
+    return flowFiles.stream()
+        .map(flowFile -> injectContextToFlowFile(flowFile, processSession, currentSpan))
         .collect(Collectors.toList());
   }
 }

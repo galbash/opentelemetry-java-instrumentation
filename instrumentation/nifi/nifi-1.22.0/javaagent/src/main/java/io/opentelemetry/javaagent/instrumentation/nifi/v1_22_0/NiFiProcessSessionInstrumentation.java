@@ -35,34 +35,29 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
   @Override
   public void transform(TypeTransformer typeTransformer) {
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("get")
-            .and(takesNoArguments())
-            .and(returns(FlowFile.class)),
+        namedOneOf("get").and(takesNoArguments()).and(returns(FlowFile.class)),
         this.getClass().getName() + "$NiFiProcessGetAdvice");
+
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("get")
-            .and(takesArguments(2))
-            .and(returns(List.class)),
+        namedOneOf("get").and(takesArguments(2)).and(returns(List.class)),
         this.getClass().getName() + "$NiFiProcessGetListAdvice");
+
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("create")
-            .and(takesNoArguments().or(takesArguments(FlowFile.class))),
+        namedOneOf("create").and(takesNoArguments().or(takesArguments(FlowFile.class))),
         this.getClass().getName() + "$NiFiProcessGetAdvice");
-    typeTransformer.applyAdviceToMethod(
-        namedOneOf("create")
-            .and(takesArguments(Collection.class)),
+
+    typeTransformer.applyAdviceToMethod(namedOneOf("create").and(takesArguments(Collection.class)),
         this.getClass().getName() + "$NiFiProcessCreateMergeAdvice");
+
     typeTransformer.applyAdviceToMethod(
         namedOneOf("transfer").and(takesArgument(0, FlowFile.class)),
         this.getClass().getName() + "$NiFiProcessTransferAdvice");
+
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("transfer")
-            .and(takesArguments(2))
-            .and(takesArgument(0, Collection.class)),
+        namedOneOf("transfer").and(takesArguments(2)).and(takesArgument(0, Collection.class)),
         this.getClass().getName() + "$NiFiProcessTransferListAdvice");
-    typeTransformer.applyAdviceToMethod(
-        namedOneOf("checkpoint")
-            .and(takesArguments(boolean.class)),
+
+    typeTransformer.applyAdviceToMethod(namedOneOf("checkpoint").and(takesArguments(boolean.class)),
         this.getClass().getName() + "$NiFiProcessCheckpointAdvice");
   }
 
@@ -76,7 +71,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Return FlowFile flowFile
     ) {
       if (flowFile != null) {
-        NifiProcessSessionSingletons.startProcessSessionSpan(session, flowFile);
+        ProcessSessionSingletons.startProcessSessionSpan(session, flowFile);
       }
     }
   }
@@ -91,8 +86,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Return List<FlowFile> flowFiles
     ) {
       if (flowFiles != null) {
-        NifiProcessSessionSingletons.startProcessSessionSpan(session, flowFiles);
-        Java8BytecodeBridge.currentSpan().addEvent("Signle get");
+        ProcessSessionSingletons.startProcessSessionSpan(session, flowFiles);
       }
     }
   }
@@ -108,8 +102,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Argument(0) Collection<FlowFile> inputFlowFiles
     ) {
       ProcessSpanTracker.close(session);
-      NifiProcessSessionSingletons.startProcessSessionSpan(session, inputFlowFiles);
-      Java8BytecodeBridge.currentSpan().addEvent("Create merge");
+      ProcessSessionSingletons.startProcessSessionSpan(session, inputFlowFiles);
     }
   }
 
@@ -123,8 +116,11 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.This ProcessSession processSession
     ) {
       Span currentSpan = Java8BytecodeBridge.currentSpan();
-      flowFile = NifiProcessSessionSingletons.injectContextToFlowFile(flowFile, processSession,
-          currentSpan);
+      flowFile = ProcessSessionSingletons.injectContextToFlowFile(
+          flowFile,
+          processSession,
+          currentSpan
+      );
     }
   }
 
@@ -138,8 +134,11 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.This ProcessSession processSession
     ) {
       Span currentSpan = Java8BytecodeBridge.currentSpan();
-      flowFiles = NifiProcessSessionSingletons.injectContextToFlowFiles(flowFiles, processSession,
-          currentSpan);
+      flowFiles = ProcessSessionSingletons.injectContextToFlowFiles(
+          flowFiles,
+          processSession,
+          currentSpan
+      );
     }
   }
 

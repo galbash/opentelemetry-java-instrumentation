@@ -12,5 +12,4 @@ public enum FlowFileAttributesTextMapSetter implements TextMapSetter<Map<String,
       carrier.put(key, value);
     }
   }
-
 }
