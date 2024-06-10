@@ -25,8 +25,12 @@ public final class ProcessSessionSingletons {
   public static void startProcessSessionSpan(ProcessSession session, FlowFile flowFile) {
     Context extractedContext = GlobalOpenTelemetry.getPropagators()
         .getTextMapPropagator()
-        .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
-            FlowFileAttributesTextMapGetter.INSTANCE);
+        .extract(
+            Java8BytecodeBridge.rootContext(),
+            // using root context because we want only the extracted context if exists
+            flowFile.getAttributes(),
+            FlowFileAttributesTextMapGetter.INSTANCE
+        );
     Span span = tracer.spanBuilder("Handle Flow File")
         .setParent(extractedContext)
         .startSpan();
@@ -45,14 +49,17 @@ public final class ProcessSessionSingletons {
 
   public static void startMergeProcessSessionSpan(
       ProcessSession session,
-      Collection<FlowFile> flowFiles) {
+      Collection<FlowFile> inputFlowFiles,
+      FlowFile outputFlowFile
+
+  ) {
 //    if (flowFiles.size() == 1) {
 //      startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
 //      return;
 //    }
 
     SpanBuilder spanBuilder = tracer.spanBuilder("Handle Flow Files");
-    List<Context> parentContexts = flowFiles.stream()
+    List<Context> parentContexts = inputFlowFiles.stream()
         .map(flowFile -> GlobalOpenTelemetry.getPropagators()
             .getTextMapPropagator()
             .extract(Java8BytecodeBridge.currentContext(), flowFile.getAttributes(),
@@ -64,9 +71,7 @@ public final class ProcessSessionSingletons {
 
     Span span = spanBuilder.setNoParent().startSpan();
     Scope scope = span.makeCurrent();
-    for (FlowFile file : flowFiles) {
-      ProcessSpanTracker.set(session, file, span, scope);
-    }
+    ProcessSpanTracker.set(session, outputFlowFile, span, scope);
   }
 
   /**

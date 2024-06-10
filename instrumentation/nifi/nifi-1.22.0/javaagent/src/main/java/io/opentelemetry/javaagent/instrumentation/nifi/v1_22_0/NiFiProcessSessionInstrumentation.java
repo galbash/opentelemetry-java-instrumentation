@@ -5,6 +5,8 @@
 
 package io.opentelemetry.javaagent.instrumentation.nifi.v1_22_0;
 
+import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
+import static net.bytebuddy.matcher.ElementMatchers.isSynchronized;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -69,6 +71,9 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
 
     typeTransformer.applyAdviceToMethod(namedOneOf("checkpoint").and(takesArguments(boolean.class)),
         this.getClass().getName() + "$NiFiProcessCheckpointAdvice");
+    typeTransformer.applyAdviceToMethod(
+        namedOneOf("migrate").and(isSynchronized()).and(isPrivate()),
+        this.getClass().getName() + "$NiFiProcessMigrateAdvice");
   }
 
   @SuppressWarnings("unused")
@@ -127,7 +132,8 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Argument(0) Collection<FlowFile> inputFlowFiles
     ) {
       //ProcessSpanTracker.close(session);
-      ProcessSessionSingletons.startMergeProcessSessionSpan(session, inputFlowFiles);
+      ProcessSessionSingletons.startMergeProcessSessionSpan(session, inputFlowFiles,
+          createFlowFile);
     }
   }
 
@@ -170,6 +176,24 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     @Advice.OnMethodExit()
     public static void onExit(@Advice.This ProcessSession session) {
       ProcessSpanTracker.close(session);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class NiFiProcessMigrateAdvice {
+
+    //@Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit()
+    public static void onExit(
+        @Advice.This ProcessSession oldSession,
+        @Advice.Argument(0) ProcessSession newSession,
+        @Advice.Argument(1) Collection<FlowFile> flowFiles
+    ) {
+      ProcessSpanTracker.migrate(
+          oldSession,
+          newSession,
+          flowFiles
+      );
     }
   }
 }

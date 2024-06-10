@@ -8,6 +8,7 @@ import io.opentelemetry.instrumentation.api.util.VirtualField;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.bootstrap.nifi.v1_22_0.ProcessSpanDetails;
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.flowfile.attributes.CoreAttributes;
@@ -123,4 +124,17 @@ public class ProcessSpanTracker {
     map.clear();
   }
 
+  public static void migrate(ProcessSession oldSession, ProcessSession newSession,
+      Collection<FlowFile> flowFiles) {
+    ConcurrentHashMap<String, ProcessSpanDetails> oldMap = getOrCreateMap(oldSession,
+        "migrate old");
+    ConcurrentHashMap<String, ProcessSpanDetails> newMap = getOrCreateMap(newSession,
+        "migrate new");
+    for (FlowFile file : flowFiles) {
+      String id = file.getAttribute(CoreAttributes.UUID.key());
+      if (oldMap.containsKey(id)) {
+        newMap.put(id, oldMap.remove(id));
+      }
+    }
+  }
 }
