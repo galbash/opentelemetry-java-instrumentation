@@ -124,7 +124,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.This ProcessSession processSession
     ) {
       Span currentSpan = Java8BytecodeBridge.currentSpan();
-      flowFile = ProcessSessionSingletons.injectContextToFlowFile(
+      flowFile = ProcessSessionSingletons.handleTransferFlowFile(
           flowFile,
           processSession,
           currentSpan
@@ -142,7 +142,7 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.This ProcessSession processSession
     ) {
       Span currentSpan = Java8BytecodeBridge.currentSpan();
-      flowFiles = ProcessSessionSingletons.injectContextToFlowFiles(
+      flowFiles = ProcessSessionSingletons.handleTransferFlowFiles(
           flowFiles,
           processSession,
           currentSpan

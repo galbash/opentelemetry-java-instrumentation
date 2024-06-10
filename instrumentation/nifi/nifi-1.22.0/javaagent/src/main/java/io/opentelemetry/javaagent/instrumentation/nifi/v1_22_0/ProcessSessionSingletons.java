@@ -30,9 +30,6 @@ public final class ProcessSessionSingletons {
     Span span = tracer.spanBuilder("Handle Flow File")
         .setParent(extractedContext)
         .startSpan();
-    for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
-      span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
-    }
     Scope scope = span.makeCurrent();
     ProcessSpanTracker.set(session, flowFile, span, scope);
   }
@@ -63,10 +60,17 @@ public final class ProcessSessionSingletons {
     }
   }
 
-  public static FlowFile injectContextToFlowFile(
+  /**
+   * 1. Injects span context to flow file, creates new file
+   * 2. records attributes to span
+   */
+  public static FlowFile handleTransferFlowFile(
       FlowFile flowFile,
       ProcessSession processSession,
       Span currentSpan) {
+    for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
+      currentSpan.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
+    }
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()
@@ -75,12 +79,12 @@ public final class ProcessSessionSingletons {
     return processSession.putAllAttributes(flowFile, carrier);
   }
 
-  public static List<FlowFile> injectContextToFlowFiles(
+  public static List<FlowFile> handleTransferFlowFiles(
       Collection<FlowFile> flowFiles,
       ProcessSession processSession,
       Span currentSpan) {
     return flowFiles.stream()
-        .map(flowFile -> injectContextToFlowFile(flowFile, processSession, currentSpan))
+        .map(flowFile -> handleTransferFlowFile(flowFile, processSession, currentSpan))
         .collect(Collectors.toList());
   }
 }
