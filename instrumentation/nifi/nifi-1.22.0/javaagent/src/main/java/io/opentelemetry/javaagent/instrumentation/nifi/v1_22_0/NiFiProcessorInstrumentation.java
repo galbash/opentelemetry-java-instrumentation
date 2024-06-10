@@ -13,12 +13,9 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
 import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
-import java.util.Locale;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
-import org.apache.nifi.components.PropertyDescriptor;
 import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Processor;
@@ -49,13 +46,14 @@ public class NiFiProcessorInstrumentation implements TypeInstrumentation {
       Span activeSpan = Span.current();
 
       activeSpan.updateName(processor.getClass().getSimpleName() + " " + processContext.getName());
-      activeSpan.setAttribute("nifi.processor.name", processContext.getName());
-      activeSpan.setAttribute("nifi.processor.type", processor.getClass().getName());
+      activeSpan.setAttribute("nifi.component.name", processContext.getName());
+      activeSpan.setAttribute("nifi.component.type", processor.getClass().getName());
+      activeSpan.setAttribute("nifi.component.id", processor.getIdentifier());
 
-      for (Map.Entry<PropertyDescriptor, String> e : processContext.getProperties().entrySet()) {
-        String name = String.join(".", e.getKey().getName().toLowerCase(Locale.ROOT).split("\\s+"));
-        activeSpan.setAttribute("nifi.processor.properties." + name, e.getValue());
-      }
+//      for (Map.Entry<PropertyDescriptor, String> e : processContext.getProperties().entrySet()) {
+//        String name = String.join(".", e.getKey().getName().toLowerCase(Locale.ROOT).split("\\s+"));
+//        activeSpan.setAttribute("nifi.processor.properties." + name, e.getValue());
+//      }
     }
   }
 }

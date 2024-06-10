@@ -24,6 +24,14 @@ import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 
+/**
+ * Open a span on get / create with single file for each of the files
+ * Close the span on commit
+ * Close span before create with list (merge)
+ * * Maybe we want to put them aside, deal with the batch and close only at the end at the merge
+ * on create with list create new trace and add links
+ * Inject *right* context on transfer (in case of batch find correct one)
+ */
 public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
 
   @Override
