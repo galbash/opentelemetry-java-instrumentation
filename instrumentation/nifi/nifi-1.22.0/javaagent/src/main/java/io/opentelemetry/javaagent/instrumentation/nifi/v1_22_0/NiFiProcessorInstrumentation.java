@@ -9,7 +9,10 @@ import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
 import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
@@ -43,17 +46,17 @@ public class NiFiProcessorInstrumentation implements TypeInstrumentation {
         @Advice.This Processor processor,
         @Advice.Argument(0) ProcessContext processContext,
         @Advice.Argument(1) ProcessSession processSession) {
-      Span activeSpan = Span.current();
-
-      activeSpan.updateName(processor.getClass().getSimpleName() + " " + processContext.getName());
-      activeSpan.setAttribute("nifi.component.name", processContext.getName());
-      activeSpan.setAttribute("nifi.component.type", processor.getClass().getName());
-      activeSpan.setAttribute("nifi.component.id", processor.getIdentifier());
-
-//      for (Map.Entry<PropertyDescriptor, String> e : processContext.getProperties().entrySet()) {
-//        String name = String.join(".", e.getKey().getName().toLowerCase(Locale.ROOT).split("\\s+"));
-//        activeSpan.setAttribute("nifi.processor.properties." + name, e.getValue());
-//      }
+      Span currentSpan = Java8BytecodeBridge.currentSpan();
+      currentSpan.addEvent("On trigger running",
+          Attributes.of(
+              AttributeKey.stringKey("processor"), processor.getClass().getSimpleName(),
+              AttributeKey.stringKey("pname"), processContext.getName()
+          ));
+      ProcessSpanTracker.updateProcessorAttributes(
+          processSession,
+          processor,
+          processContext
+      );
     }
   }
 }

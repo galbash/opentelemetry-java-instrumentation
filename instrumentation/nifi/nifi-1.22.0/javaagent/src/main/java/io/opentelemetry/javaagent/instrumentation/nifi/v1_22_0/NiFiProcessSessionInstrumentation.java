@@ -11,8 +11,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeInstrumentation;
 import io.opentelemetry.javaagent.extension.instrumentation.TypeTransformer;
 import io.opentelemetry.javaagent.extension.matcher.AgentElementMatchers;
@@ -53,6 +51,10 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     typeTransformer.applyAdviceToMethod(
         namedOneOf("create").and(takesNoArguments().or(takesArguments(FlowFile.class))),
         this.getClass().getName() + "$NiFiProcessGetAdvice");
+
+    typeTransformer.applyAdviceToMethod(
+        namedOneOf("clone").and(takesArgument(0, FlowFile.class)).and(takesArguments(3)),
+        this.getClass().getName() + "$NiFiProcessCloneAdvice");
 
     typeTransformer.applyAdviceToMethod(namedOneOf("create").and(takesArguments(Collection.class)),
         this.getClass().getName() + "$NiFiProcessCreateMergeAdvice");
@@ -100,6 +102,21 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
   }
 
   @SuppressWarnings("unused")
+  public static class NiFiProcessCloneAdvice {
+
+    //@Advice.OnMethodExit(suppress = Throwable.class)
+    @Advice.OnMethodExit()
+    public static void onExit(
+        @Advice.This ProcessSession session,
+        @Advice.Return FlowFile flowFile
+    ) {
+      if (flowFile != null) {
+        ProcessSessionSingletons.startProcessSessionSpan(session, flowFile);
+      }
+    }
+  }
+
+  @SuppressWarnings("unused")
   public static class NiFiProcessCreateMergeAdvice {
 
     //@Advice.OnMethodExit(suppress = Throwable.class)
@@ -109,8 +126,8 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Return FlowFile createFlowFile,
         @Advice.Argument(0) Collection<FlowFile> inputFlowFiles
     ) {
-      ProcessSpanTracker.close(session);
-      ProcessSessionSingletons.startProcessSessionSpan(session, inputFlowFiles);
+      //ProcessSpanTracker.close(session);
+      ProcessSessionSingletons.startMergeProcessSessionSpan(session, inputFlowFiles);
     }
   }
 
@@ -123,11 +140,9 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Argument(value = 0, readOnly = false) FlowFile flowFile,
         @Advice.This ProcessSession processSession
     ) {
-      Span currentSpan = Java8BytecodeBridge.currentSpan();
       flowFile = ProcessSessionSingletons.handleTransferFlowFile(
           flowFile,
-          processSession,
-          currentSpan
+          processSession
       );
     }
   }
@@ -141,11 +156,9 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         @Advice.Argument(value = 0, readOnly = false) Collection<FlowFile> flowFiles,
         @Advice.This ProcessSession processSession
     ) {
-      Span currentSpan = Java8BytecodeBridge.currentSpan();
       flowFiles = ProcessSessionSingletons.handleTransferFlowFiles(
           flowFiles,
-          processSession,
-          currentSpan
+          processSession
       );
     }
   }

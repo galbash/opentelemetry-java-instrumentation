@@ -8,7 +8,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
-import java.util.ArrayList;
+import io.opentelemetry.javaagent.bootstrap.nifi.v1_22_0.ProcessSpanDetails;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -37,10 +37,19 @@ public final class ProcessSessionSingletons {
   public static void startProcessSessionSpan(
       ProcessSession session,
       Collection<FlowFile> flowFiles) {
-    if (flowFiles.size() == 1) {
-      startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
-      return;
+    for (FlowFile flowFile : flowFiles) {
+      // in case of multiple files, only the last will be "active"
+      startProcessSessionSpan(session, flowFile);
     }
+  }
+
+  public static void startMergeProcessSessionSpan(
+      ProcessSession session,
+      Collection<FlowFile> flowFiles) {
+//    if (flowFiles.size() == 1) {
+//      startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
+//      return;
+//    }
 
     SpanBuilder spanBuilder = tracer.spanBuilder("Handle Flow Files");
     List<Context> parentContexts = flowFiles.stream()
@@ -66,25 +75,29 @@ public final class ProcessSessionSingletons {
    */
   public static FlowFile handleTransferFlowFile(
       FlowFile flowFile,
-      ProcessSession processSession,
-      Span currentSpan) {
+      ProcessSession processSession
+  ) {
+
+    // TODO: if no details return
+    ProcessSpanDetails details = ProcessSpanTracker.get(processSession,
+        flowFile);
     for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
-      currentSpan.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
+      details.span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
     }
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()
         .getTextMapPropagator()
-        .inject(Java8BytecodeBridge.currentContext(), carrier, setter);
+        .inject(Java8BytecodeBridge.currentContext().with(details.span), carrier, setter);
     return processSession.putAllAttributes(flowFile, carrier);
   }
 
   public static List<FlowFile> handleTransferFlowFiles(
       Collection<FlowFile> flowFiles,
-      ProcessSession processSession,
-      Span currentSpan) {
+      ProcessSession processSession
+  ) {
     return flowFiles.stream()
-        .map(flowFile -> handleTransferFlowFile(flowFile, processSession, currentSpan))
+        .map(flowFile -> handleTransferFlowFile(flowFile, processSession))
         .collect(Collectors.toList());
   }
 }
