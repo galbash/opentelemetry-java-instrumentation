@@ -13,11 +13,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 
 public final class ProcessSessionSingletons {
+  private static final Logger logger = Logger.getLogger(ProcessSessionSingletons.class.getName());
   static Tracer tracer = GlobalOpenTelemetry.getTracer("nifi");
 
   private ProcessSessionSingletons() {}
@@ -30,15 +32,33 @@ public final class ProcessSessionSingletons {
           .setAttribute("nifi.component.name", pConfig.processContext.getName())
           .setAttribute("nifi.component.type", pConfig.processor.getClass().getName())
           .setAttribute("nifi.component.id", pConfig.processor.getIdentifier());
+    } else if (Thread.currentThread().getName().startsWith("ListenHTTP")) {
+      return tracer.spanBuilder("ListenHTTP");
     }
     return tracer.spanBuilder("Handle Flow File");
+  }
+
+  public static Context getDefaultContext() {
+    ActiveProcessorConfig pConfig = ActiveProcessorSaver.get();
+    if (pConfig.processor != null) {
+      logger.info(
+          "processorName: " + pConfig.processor.getClass().getSimpleName() + " processor: "
+              + pConfig.processor);
+      if (pConfig.processor.getClass().getSimpleName().equals("GetWMQ")) {
+        return Java8BytecodeBridge.currentContext();
+      }
+      // this one works
+    } else if (Thread.currentThread().getName().startsWith("ListenHTTP")) {
+      return Java8BytecodeBridge.currentContext();
+    }
+
+    return Java8BytecodeBridge.rootContext();
   }
 
 
   public static void startProcessSessionSpan(ProcessSession session, FlowFile flowFile) {
     // if no external context was found, use root context since current context may be spam
-    Context externalContext = ExternalContextTracker.pop(session,
-        Java8BytecodeBridge.rootContext());
+    Context externalContext = ExternalContextTracker.pop(session, getDefaultContext());
     Context extractedContext = GlobalOpenTelemetry.getPropagators()
         .getTextMapPropagator()
         .extract(
