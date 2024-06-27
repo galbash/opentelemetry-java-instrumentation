@@ -23,10 +23,13 @@ public final class ProcessSessionSingletons {
   private ProcessSessionSingletons() {}
 
   public static void startProcessSessionSpan(ProcessSession session, FlowFile flowFile) {
+    // if no external context was found, use root context since current context may be spam
+    Context externalContext = ExternalContextTracker.pop(session,
+        Java8BytecodeBridge.rootContext());
     Context extractedContext = GlobalOpenTelemetry.getPropagators()
         .getTextMapPropagator()
         .extract(
-            Java8BytecodeBridge.rootContext(),
+            externalContext,
             // using root context because we want only the extracted context if exists
             flowFile.getAttributes(),
             FlowFileAttributesTextMapGetter.INSTANCE

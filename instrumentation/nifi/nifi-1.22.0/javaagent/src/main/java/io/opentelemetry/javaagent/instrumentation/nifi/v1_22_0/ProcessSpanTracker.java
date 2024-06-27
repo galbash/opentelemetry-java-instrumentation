@@ -18,7 +18,7 @@ import org.apache.nifi.processor.Processor;
 
 
 public class ProcessSpanTracker {
-  private static final VirtualField<ProcessSession, ConcurrentHashMap<String, ProcessSpanDetails>> virtualField =
+  private static final VirtualField<ProcessSession, ConcurrentHashMap<String, ProcessSpanDetails>> processSpanDetailsMap =
       VirtualField.find(ProcessSession.class, ConcurrentHashMap.class);
 
   private ProcessSpanTracker() {}
@@ -70,7 +70,7 @@ public class ProcessSpanTracker {
   private static ConcurrentHashMap<String, ProcessSpanDetails> getOrCreateMap(
       ProcessSession session,
       String more) {
-    ConcurrentHashMap<String, ProcessSpanDetails> map = virtualField.get(session);
+    ConcurrentHashMap<String, ProcessSpanDetails> map = processSpanDetailsMap.get(session);
     Span currentSpan = Java8BytecodeBridge.currentSpan();
     currentSpan.addEvent("Getting map " + more,
         Attributes.of(
@@ -87,7 +87,7 @@ public class ProcessSpanTracker {
               AttributeKey.stringKey("session_tostring"), session.toString(),
               AttributeKey.longKey("session_hashcode"), (long) session.hashCode()
           ));
-      virtualField.set(session, map);
+      processSpanDetailsMap.set(session, map);
     }
     return map;
   }
@@ -101,7 +101,7 @@ public class ProcessSpanTracker {
 
   public static void close(ProcessSession session) {
     Span currentSpan = Java8BytecodeBridge.currentSpan();
-    ConcurrentHashMap<String, ProcessSpanDetails> map = virtualField.get(session);
+    ConcurrentHashMap<String, ProcessSpanDetails> map = processSpanDetailsMap.get(session);
     if (map == null) {
       currentSpan.addEvent("Close process span tracker called",
           Attributes.of(
