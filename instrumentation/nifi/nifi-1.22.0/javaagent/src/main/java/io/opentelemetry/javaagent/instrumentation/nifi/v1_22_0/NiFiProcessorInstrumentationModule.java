@@ -15,9 +15,9 @@ import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumentationModule.class)
-public final class NiFiInstrumentationModule extends InstrumentationModule {
-  public NiFiInstrumentationModule() {
-    super("nifi");
+public final class NiFiProcessorInstrumentationModule extends InstrumentationModule {
+  public NiFiProcessorInstrumentationModule() {
+    super("nifi-processor");
   }
 
   @Override
@@ -27,15 +27,13 @@ public final class NiFiInstrumentationModule extends InstrumentationModule {
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.nifi.controller.repository.StandardProcessSession")
-        .or(hasClassesNamed("org.apache.nifi.processor.AbstractProcessor"));
+    return hasClassesNamed("org.apache.nifi.processor.Processor");
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
     ArrayList<TypeInstrumentation> result = new ArrayList<>();
     result.add(new NiFiProcessorInstrumentation());
-    result.add(new NiFiProcessSessionInstrumentation());
     return result;
   }
 }

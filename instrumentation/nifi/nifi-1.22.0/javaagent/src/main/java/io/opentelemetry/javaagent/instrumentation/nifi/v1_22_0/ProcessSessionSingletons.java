@@ -22,6 +22,19 @@ public final class ProcessSessionSingletons {
 
   private ProcessSessionSingletons() {}
 
+  private static SpanBuilder createSpanBuilder() {
+    ActiveProcessorConfig pConfig = ActiveProcessorSaver.get();
+    if (pConfig.processContext != null && pConfig.processor != null) {
+      return tracer.spanBuilder(
+              pConfig.processor.getClass().getSimpleName() + ":" + pConfig.processContext.getName())
+          .setAttribute("nifi.component.name", pConfig.processContext.getName())
+          .setAttribute("nifi.component.type", pConfig.processor.getClass().getName())
+          .setAttribute("nifi.component.id", pConfig.processor.getIdentifier());
+    }
+    return tracer.spanBuilder("Handle Flow File");
+  }
+
+
   public static void startProcessSessionSpan(ProcessSession session, FlowFile flowFile) {
     // if no external context was found, use root context since current context may be spam
     Context externalContext = ExternalContextTracker.pop(session,
@@ -34,7 +47,7 @@ public final class ProcessSessionSingletons {
             flowFile.getAttributes(),
             FlowFileAttributesTextMapGetter.INSTANCE
         );
-    Span span = tracer.spanBuilder("Handle Flow File")
+    Span span = createSpanBuilder()
         .setParent(extractedContext)
         .startSpan();
     Scope scope = span.makeCurrent();
@@ -61,7 +74,7 @@ public final class ProcessSessionSingletons {
 //      return;
 //    }
 
-    SpanBuilder spanBuilder = tracer.spanBuilder("Handle Flow Files");
+    SpanBuilder spanBuilder = createSpanBuilder();
     List<Context> parentContexts = inputFlowFiles.stream()
         .map(flowFile -> GlobalOpenTelemetry.getPropagators()
             .getTextMapPropagator()

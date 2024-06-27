@@ -7,14 +7,11 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.instrumentation.api.util.VirtualField;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
 import io.opentelemetry.javaagent.bootstrap.nifi.v1_22_0.ProcessSpanDetails;
-import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.flowfile.attributes.CoreAttributes;
-import org.apache.nifi.processor.ProcessContext;
 import org.apache.nifi.processor.ProcessSession;
-import org.apache.nifi.processor.Processor;
 
 
 public class ProcessSpanTracker {
@@ -22,44 +19,6 @@ public class ProcessSpanTracker {
       VirtualField.find(ProcessSession.class, ConcurrentHashMap.class);
 
   private ProcessSpanTracker() {}
-
-  public static void updateProcessorAttributes(
-      ProcessSession session,
-      Processor processor,
-      ProcessContext processContext
-  ) {
-    Span currentSpan = Java8BytecodeBridge.currentSpan();
-    if (session.getClass().getSimpleName().equals("HighThroughputSession")) {
-      // for HighThroughputSession we need to extract the delegate standard session
-      try {
-        Field delegateField = session.getClass().getDeclaredField("session");
-        delegateField.setAccessible(true);
-        session = (ProcessSession) delegateField.get(session);
-
-      } catch (NoSuchFieldException | IllegalAccessException e) {
-        currentSpan.recordException(e);
-      }
-    }
-    ConcurrentHashMap<String, ProcessSpanDetails> map = getOrCreateMap(session, "upa");
-    currentSpan.addEvent("In update ProcessorAttributes",
-        Attributes.of(
-            AttributeKey.longKey("map_size"), (long) map.size()
-        ));
-    for (ProcessSpanDetails details : map.values()) {
-      Span span = details.span;
-      currentSpan.addEvent("Updating specific span",
-          Attributes.of(
-              AttributeKey.stringKey("spanId"), span.getSpanContext().getSpanId(),
-              AttributeKey.stringKey("new name"),
-              processor.getClass().getSimpleName() + ":" + processContext.getName()
-          ));
-      span.updateName(processor.getClass().getSimpleName() + ":" + processContext.getName());
-      span.setAttribute("nifi.component.name", processContext.getName());
-      span.setAttribute("nifi.component.type", processor.getClass().getName());
-      span.setAttribute("nifi.component.id", processor.getIdentifier());
-
-    }
-  }
 
   public static void set(ProcessSession session, FlowFile file, Span span, Scope scope) {
     ConcurrentHashMap<String, ProcessSpanDetails> map = getOrCreateMap(session, "set");

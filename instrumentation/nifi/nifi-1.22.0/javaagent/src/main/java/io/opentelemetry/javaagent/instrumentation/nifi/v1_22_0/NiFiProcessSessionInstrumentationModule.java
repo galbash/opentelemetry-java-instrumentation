@@ -15,25 +15,26 @@ import java.util.List;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumentationModule.class)
-public final class NiFiKafkaInstrumentationModule extends InstrumentationModule {
-  public NiFiKafkaInstrumentationModule() {
-    super("nifi-kafka");
+public final class NiFiProcessSessionInstrumentationModule extends InstrumentationModule {
+  public NiFiProcessSessionInstrumentationModule() {
+    super("nifi");
   }
 
   @Override
   public int order() {
-    return 3;
+    return 2;
   }
 
   @Override
   public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
-    return hasClassesNamed("org.apache.nifi.processors.kafka.pubsub.ConsumerLease");
+    return hasClassesNamed("org.apache.nifi.controller.repository.StandardProcessSession")
+        .or(hasClassesNamed("org.apache.nifi.processor.Processor"));
   }
 
   @Override
   public List<TypeInstrumentation> typeInstrumentations() {
     ArrayList<TypeInstrumentation> result = new ArrayList<>();
-    result.add(new NiFiConsumerLeaseInstrumentation());
+    result.add(new NiFiProcessSessionInstrumentation());
     return result;
   }
 }
