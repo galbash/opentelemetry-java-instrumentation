@@ -8,17 +8,19 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import io.opentelemetry.javaagent.bootstrap.Java8BytecodeBridge;
-import io.opentelemetry.javaagent.bootstrap.nifi.v1_22_0.ProcessSpanDetails;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 
 public final class ProcessSessionSingletons {
+  private static final Logger logger =
+      Logger.getLogger(ProcessSessionSingletons.class.getName());
   static Tracer tracer = GlobalOpenTelemetry.getTracer("nifi");
 
   private ProcessSessionSingletons() {}
@@ -112,18 +114,20 @@ public final class ProcessSessionSingletons {
       ProcessSession processSession
   ) {
 
-    // TODO: if no details return
-    ProcessSpanDetails details = ProcessSpanTracker.get(processSession,
-        flowFile);
-    for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
-      details.span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
+    Span span = ProcessSpanTracker.getSpan(processSession, flowFile);
+    if (span == null) {
+      logger.warning("No active span for flow file found");
+      return flowFile;
     }
-    details.span.setAttribute("nifi.relationship.target", relationship.getName());
+    for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
+      span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
+    }
+    span.setAttribute("nifi.relationship.target", relationship.getName());
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()
         .getTextMapPropagator()
-        .inject(Java8BytecodeBridge.currentContext().with(details.span), carrier, setter);
+        .inject(Java8BytecodeBridge.currentContext().with(span), carrier, setter);
     return processSession.putAllAttributes(flowFile, carrier);
   }
 

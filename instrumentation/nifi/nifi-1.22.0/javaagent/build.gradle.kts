@@ -14,7 +14,6 @@ dependencies {
   implementation("org.apache.nifi:nifi-api:1.22.0")
   implementation("org.apache.nifi:nifi-repository-models:1.22.0")
   implementation("org.apache.kafka:kafka-clients:2.6.3")
-  bootstrap(project(":instrumentation:nifi:nifi-1.22.0:bootstrap"))
 }
 
 tasks {

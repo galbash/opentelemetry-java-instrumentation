@@ -597,7 +597,6 @@ include(":instrumentation:xxl-job:xxl-job-common:javaagent")
 include(":instrumentation:xxl-job:xxl-job-common:testing")
 include(":instrumentation:zio:zio-2.0:javaagent")
 include(":instrumentation:nifi:nifi-1.22.0:javaagent")
-include(":instrumentation:nifi:nifi-1.22.0:bootstrap")
 
 // benchmark
 include(":benchmark-overhead-jmh")
