@@ -17,6 +17,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
+import org.apache.nifi.processor.Relationship;
 
 public final class ProcessSessionSingletons {
   private static final Logger logger = Logger.getLogger(ProcessSessionSingletons.class.getName());
@@ -89,10 +90,6 @@ public final class ProcessSessionSingletons {
       FlowFile outputFlowFile
 
   ) {
-//    if (flowFiles.size() == 1) {
-//      startProcessSessionSpan(session, new ArrayList<>(flowFiles).get(0));
-//      return;
-//    }
 
     SpanBuilder spanBuilder = createSpanBuilder();
     List<Context> parentContexts = inputFlowFiles.stream()
@@ -116,6 +113,7 @@ public final class ProcessSessionSingletons {
    */
   public static FlowFile handleTransferFlowFile(
       FlowFile flowFile,
+      Relationship relationship,
       ProcessSession processSession
   ) {
 
@@ -125,6 +123,7 @@ public final class ProcessSessionSingletons {
     for (Map.Entry<String, String> entry : flowFile.getAttributes().entrySet()) {
       details.span.setAttribute("nifi.attributes." + entry.getKey(), entry.getValue());
     }
+    details.span.setAttribute("nifi.relationship.target", relationship.getName());
     Map<String, String> carrier = new HashMap<>();
     TextMapSetter<Map<String, String>> setter = FlowFileAttributesTextMapSetter.INSTANCE;
     GlobalOpenTelemetry.getPropagators()
@@ -135,10 +134,11 @@ public final class ProcessSessionSingletons {
 
   public static List<FlowFile> handleTransferFlowFiles(
       Collection<FlowFile> flowFiles,
+      Relationship relationship,
       ProcessSession processSession
   ) {
     return flowFiles.stream()
-        .map(flowFile -> handleTransferFlowFile(flowFile, processSession))
+        .map(flowFile -> handleTransferFlowFile(flowFile, relationship, processSession))
         .collect(Collectors.toList());
   }
 }

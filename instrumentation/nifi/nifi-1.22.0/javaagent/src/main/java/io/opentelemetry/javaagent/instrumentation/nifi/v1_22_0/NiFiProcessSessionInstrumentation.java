@@ -23,6 +23,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
+import org.apache.nifi.processor.Relationship;
 
 /**
  * Open a span on get / create with single file for each of the files
@@ -61,11 +62,15 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
         this.getClass().getName() + "$NiFiProcessCreateMergeAdvice");
 
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("transfer").and(takesArgument(0, FlowFile.class)),
+        namedOneOf("transfer").and(takesArguments(FlowFile.class)),
         this.getClass().getName() + "$NiFiProcessTransferAdvice");
 
     typeTransformer.applyAdviceToMethod(
-        namedOneOf("transfer").and(takesArguments(2)).and(takesArgument(0, Collection.class)),
+        namedOneOf("transfer").and(takesArguments(FlowFile.class, Relationship.class)),
+        this.getClass().getName() + "$NiFiProcessTransferWithRelationshipAdvice");
+
+    typeTransformer.applyAdviceToMethod(
+        namedOneOf("transfer").and(takesArguments(Collection.class, Relationship.class)),
         this.getClass().getName() + "$NiFiProcessTransferListAdvice");
 
     typeTransformer.applyAdviceToMethod(namedOneOf("checkpoint").and(takesArguments(boolean.class)),
@@ -147,6 +152,25 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     ) {
       flowFile = ProcessSessionSingletons.handleTransferFlowFile(
           flowFile,
+          Relationship.SELF,
+          processSession
+      );
+    }
+  }
+
+  @SuppressWarnings("unused")
+  public static class NiFiProcessTransferWithRelationshipAdvice {
+
+    //@Advice.OnMethodEnter(suppress = Throwable.class)
+    @Advice.OnMethodEnter()
+    public static void onEnter(
+        @Advice.Argument(value = 0, readOnly = false) FlowFile flowFile,
+        @Advice.Argument(value = 1) Relationship relationship,
+        @Advice.This ProcessSession processSession
+    ) {
+      flowFile = ProcessSessionSingletons.handleTransferFlowFile(
+          flowFile,
+          relationship,
           processSession
       );
     }
@@ -159,10 +183,12 @@ public class NiFiProcessSessionInstrumentation implements TypeInstrumentation {
     @Advice.OnMethodEnter()
     public static void onEnter(
         @Advice.Argument(value = 0, readOnly = false) Collection<FlowFile> flowFiles,
+        @Advice.Argument(value = 1) Relationship relationship,
         @Advice.This ProcessSession processSession
     ) {
       flowFiles = ProcessSessionSingletons.handleTransferFlowFiles(
           flowFiles,
+          relationship,
           processSession
       );
     }
