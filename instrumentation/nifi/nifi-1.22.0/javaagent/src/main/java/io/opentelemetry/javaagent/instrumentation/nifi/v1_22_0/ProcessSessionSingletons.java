@@ -13,14 +13,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.ProcessSession;
 import org.apache.nifi.processor.Relationship;
 
 public final class ProcessSessionSingletons {
-  private static final Logger logger = Logger.getLogger(ProcessSessionSingletons.class.getName());
   static Tracer tracer = GlobalOpenTelemetry.getTracer("nifi");
 
   private ProcessSessionSingletons() {}
@@ -42,9 +40,6 @@ public final class ProcessSessionSingletons {
   public static Context getDefaultContext() {
     ActiveProcessorConfig pConfig = ActiveProcessorSaver.get();
     if (pConfig.processor != null) {
-      logger.info(
-          "processorName: " + pConfig.processor.getClass().getSimpleName() + " processor: "
-              + pConfig.processor);
       if (pConfig.processor.getClass().getSimpleName().equals("GetWMQ")) {
         return Java8BytecodeBridge.currentContext();
       }

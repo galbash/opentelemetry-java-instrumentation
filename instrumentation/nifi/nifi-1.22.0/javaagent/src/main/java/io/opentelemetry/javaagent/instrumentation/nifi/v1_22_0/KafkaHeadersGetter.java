@@ -18,7 +18,6 @@ enum KafkaHeadersGetter implements TextMapGetter<Headers> {
   INSTANCE;
 
   @Override
-  @Nullable
   public Iterable<String> keys(@Nullable Headers carrier) {
     if (carrier == null) {
       return new LinkedList<>();

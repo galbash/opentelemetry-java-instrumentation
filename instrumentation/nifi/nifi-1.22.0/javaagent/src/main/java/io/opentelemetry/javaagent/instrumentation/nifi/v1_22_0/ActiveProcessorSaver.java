@@ -16,7 +16,6 @@ public class ActiveProcessorSaver {
   private ActiveProcessorSaver() {}
 
   public static void set(Processor processor, ProcessContext processContext) {
-    logger.info("Setting processor: " + processor + " processContext: " + processContext);
     activeProcessorMap.set(Thread.currentThread(), processor);
     activeProcessContextMap.set(Thread.currentThread(), processContext);
   }
@@ -24,17 +23,13 @@ public class ActiveProcessorSaver {
   public static ActiveProcessorConfig get() {
     Processor processor = activeProcessorMap.get(Thread.currentThread());
     ProcessContext processContext = activeProcessContextMap.get(Thread.currentThread());
-    if (processor != null && processContext != null) {
-      logger.info(
-          "getting processor: " + processor + " processContext: " + processContext);
-    } else {
+    if (processor == null && processContext == null) {
       logger.warning("active processor config is null");
     }
     return new ActiveProcessorConfig(processor, processContext);
   }
 
   public static void remove() {
-    logger.info("Removing processor");
     activeProcessorMap.set(Thread.currentThread(), null);
     activeProcessContextMap.set(Thread.currentThread(), null);
   }
